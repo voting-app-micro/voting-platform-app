@@ -46,6 +46,24 @@ stages:
         tags: |
           $(tag)
 
+    - task: Bash
+      displayName: Export Docker image to tar
+      inputs:
+        targetType: inline
+        script: |
+          set -e
+          mkdir -p $(Build.ArtifactStagingDirectory)
+          docker save -o $(Build.ArtifactStagingDirectory)/votingapp-result-$(tag).tar $(imageRepository):$(tag)
+          echo "Docker image exported to tar file"
+          ls -lh $(Build.ArtifactStagingDirectory)/
+
+    - task: PublishBuildArtifacts@1
+      displayName: Publish Docker image artifact
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'docker-image-result-$(Build.BuildId)'
+        publishLocation: Container
+
 - stage: Push
   displayName: Push to Azure Container Registry
   dependsOn: Build
@@ -56,6 +74,25 @@ stages:
     pool:
       vmImage: $(vmImageName)
     steps:
+    - task: DownloadBuildArtifacts@0
+      displayName: Download Docker image artifact
+      inputs:
+        buildType: current
+        downloadType: single
+        artifactName: 'docker-image-result-$(Build.BuildId)'
+        downloadPath: '$(System.ArtifactsDirectory)'
+
+    - task: Bash
+      displayName: Load Docker image from tar
+      inputs:
+        targetType: inline
+        script: |
+          set -e
+          echo "Loading Docker image from artifact..."
+          docker load -i $(System.ArtifactsDirectory)/docker-image-result-$(Build.BuildId)/votingapp-result-$(tag).tar
+          echo "Docker image loaded successfully"
+          docker images
+
     - task: Docker@2
       displayName: Push image to ACR
       inputs:
