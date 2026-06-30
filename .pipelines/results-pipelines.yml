@@ -69,7 +69,7 @@ stages:
         script: |
           set -e
           mkdir -p $(Build.ArtifactStagingDirectory)
-          docker save -o $(Build.ArtifactStagingDirectory)/votingapp-result-$(tag).tar $(imageRepository):$(tag)
+          docker save -o $(Build.ArtifactStagingDirectory)/votingapp-result-$(tag).tar $(ContainerRegistry)/$(imageRepository):$(tag)
           echo "Docker image exported to tar file"
           ls -lh $(Build.ArtifactStagingDirectory)/
 
