@@ -19,8 +19,6 @@ variables:
     value: $(ACRRegistryServiceConnection)
   - name: imageRepository
     value: 'votingappmicrovotingplatformappimage'
-  - name: containerRegistry
-    value: $(ContainerRegistry)
   - name: dockerfilePath
     value: '$(Build.SourcesDirectory)/result/Dockerfile'
   - name: tag
