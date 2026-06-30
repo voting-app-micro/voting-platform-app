@@ -16,7 +16,7 @@ resources:
 variables:
 - group: voting-platform-secrets
   # Container registry service connection established during pipeline creation
-  dockerRegistryServiceConnection: 'da1b292c-c2ea-40db-b712-54ab3ea1bba1'
+  dockerRegistryServiceConnection: $(ACRRegistryServiceConnection)
   imageRepository: 'votingappmicrovotingplatformappimage'
   containerRegistry: $(ContainerRegistry)
   dockerfilePath: '$(Build.SourcesDirectory)/result/Dockerfile'
@@ -26,19 +26,37 @@ variables:
 
 stages:
 - stage: Build
-  displayName: Build and push stage
+  displayName: Build Docker Image
   jobs:
-  - job: Build
+  - job: BuildJob
     displayName: Build
     pool:
       vmImage: $(vmImageName)
     steps:
     - task: Docker@2
-      displayName: Build and push an image to container registry
+      displayName: Build Docker image
       inputs:
-        command: buildAndPush
+        command: build
         repository: $(imageRepository)
         dockerfile: $(dockerfilePath)
+        tags: |
+          $(tag)
+
+- stage: Push
+  displayName: Push to Azure Container Registry
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: PushJob
+    displayName: Push
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Push image to ACR
+      inputs:
+        command: push
         containerRegistry: $(dockerRegistryServiceConnection)
+        repository: $(imageRepository)
         tags: |
           $(tag)
