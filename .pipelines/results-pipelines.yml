@@ -47,6 +47,17 @@ stages:
           $(tag)
 
     - task: Bash@3
+      displayName: Tag Docker image with registry path
+      inputs:
+        targetType: inline
+        script: |
+          set -e
+          echo "Tagging image with registry path..."
+          docker tag $(imageRepository):$(tag) $(containerRegistry)/$(imageRepository):$(tag)
+          echo "Image tagged successfully"
+          docker images | grep $(imageRepository)
+
+    - task: Bash@3
       displayName: Export Docker image to tar
       inputs:
         targetType: inline
