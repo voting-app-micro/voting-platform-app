@@ -51,7 +51,7 @@ stages:
       env:
         IMAGE_REPO: $(imageRepository)
         IMAGE_TAG: $(tag)
-        REGISTRY: $(containerRegistry)
+        REGISTRY: $(ContainerRegistry)
       inputs:
         targetType: inline
         script: |
