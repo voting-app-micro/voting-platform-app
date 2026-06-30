@@ -46,7 +46,7 @@ stages:
         tags: |
           $(tag)
 
-    - task: Bash
+    - task: Bash@3
       displayName: Export Docker image to tar
       inputs:
         targetType: inline
@@ -82,7 +82,7 @@ stages:
         artifactName: 'docker-image-result-$(Build.BuildId)'
         downloadPath: '$(System.ArtifactsDirectory)'
 
-    - task: Bash
+    - task: Bash@3
       displayName: Load Docker image from tar
       inputs:
         targetType: inline
