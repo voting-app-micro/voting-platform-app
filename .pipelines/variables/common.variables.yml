@@ -1,0 +1,94 @@
+# Common Static Variables - Shared across all pipelines
+# This file contains all static configuration values
+# Secrets go in Azure DevOps Variable Groups only
+
+variables:
+
+  # ===== Registry & Build Configuration =====
+  containerRegistry: 'votingappregistry.azurecr.io'
+
+  # ===== Microservice-Specific (Override per pipeline) =====
+  # For Vote pipeline:
+  # imageRepository: 'voting-app/vote'
+  # dockerfilePath: 'vote/Dockerfile'
+
+  # For Result pipeline:
+  imageRepository: 'voting-app/result'
+  dockerfilePath: 'result/Dockerfile'
+
+  # For Worker pipeline:
+  # imageRepository: 'voting-app/worker'
+  # dockerfilePath: 'worker/Dockerfile'
+
+  # ===== Image Tagging Strategy =====
+  # Multiple tags for flexibility
+  imageTag:
+    latest: 'latest'
+    buildId: '$(Build.BuildId)'
+    commitSha: '$(Build.SourceVersionShort)'
+    timestamp: '$(Build.BuildNumber)'
+
+  # ===== Agent Configuration =====
+  vmImage: 'ubuntu-22.04'  # Fixed version, not 'latest'
+
+  # ===== Docker Build Configuration =====
+  docker:
+    buildKit: 'true'  # Enable BuildKit for faster builds
+    progress: 'plain'  # Build output format
+    verbosity: 'diagnostic'  # Docker build verbosity
+
+  # ===== Artifact & Output =====
+  artifactName: 'build-artifacts'
+  artifactDirectory: '$(Build.ArtifactStagingDirectory)'
+
+  # ===== Security Scanning =====
+  trivy:
+    severity: 'CRITICAL,HIGH'  # Fail on these severity levels
+    format: 'json'  # Output format
+    exitCode: 1  # Exit with error if vulnerabilities found
+
+  # ===== GitOps Configuration =====
+  gitOps:
+    configRepoName: 'voting-platform-config'
+    configRepoBranch: 'main'
+    # Overlay paths (override per environment)
+    overlayPath:
+      dev: 'overlays/dev'
+      staging: 'overlays/staging'
+      prod: 'overlays/prod'
+
+  # ===== Service Configuration =====
+  services:
+    result:
+      port: '80'
+      replicas:
+        dev: 2
+        staging: 3
+        prod: 5
+
+  # ===== Logging & Debugging =====
+  logging:
+    debug: 'false'  # Set to 'true' for verbose logs
+    systemDebug: 'false'
+
+  # ===== Build Arguments for Docker =====
+  dockerBuildArgs: '--progress=plain --build-arg NODE_ENV=production'
+
+  # ===== Retry Configuration =====
+  retry:
+    count: 2
+    delayInSeconds: 10
+
+  # ===== Environment Configuration =====
+  environment:
+    name: 'dev'  # Override per environment
+
+  # ===== Notification Configuration =====
+  notifications:
+    enabled: 'true'
+    channel: 'teams'  # or 'slack'
+
+  # ===== Git Configuration =====
+  git:
+    email: 'github-actions@voting-platform.local'
+    username: 'github-actions-bot'

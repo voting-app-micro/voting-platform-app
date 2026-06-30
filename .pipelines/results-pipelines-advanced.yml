@@ -1,0 +1,169 @@
+# Results Microservice CI Pipeline - Updated with VG + common.variables.yml
+# Results-PR-Build: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=2&_a=summary
+
+name: Results Microservice - Build and Push to ACR
+
+# Path-based trigger - only run on result/* changes
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - result/*
+
+# Also validate on PR
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - result/*
+
+# ===== LOAD VARIABLES =====
+# 1. Static variables from Git (common.variables.yml)
+variables:
+  - template: ../common.variables.yml
+
+# 2. Secrets from Azure DevOps Variable Group
+  - group: voting-platform-secrets
+
+resources:
+  - repo: self
+
+stages:
+  - stage: Build
+    displayName: Build, Scan, and Push
+    variables:
+      DOCKER_BUILDKIT: $(docker.buildKit)
+
+    jobs:
+      - job: Build
+        displayName: Build and Push Results Image
+        pool:
+          vmImage: $(vmImage)  # From common.variables.yml
+
+        steps:
+          # Step 1: Checkout code
+          - checkout: self
+            displayName: Checkout code
+
+          # Step 2: Build Docker image
+          - task: Docker@2
+            displayName: Build Docker image
+            inputs:
+              command: build
+              repository: $(imageRepository)  # From common.variables.yml
+              dockerfile: $(dockerfilePath)   # From common.variables.yml
+              tags: |
+                $(containerRegistry)/$(imageRepository):$(imageTag.latest)
+                $(containerRegistry)/$(imageRepository):$(imageTag.buildId)
+                $(containerRegistry)/$(imageRepository):$(imageTag.commitSha)
+              arguments: $(dockerBuildArgs)  # From common.variables.yml
+              addBaseImageData: true
+
+          # Step 3: Security scan with Trivy
+          - task: TrivyTask@1
+            displayName: Scan image for vulnerabilities (Trivy)
+            inputs:
+              image: $(containerRegistry)/$(imageRepository):$(Build.BuildId)
+              severityThreshold: $(trivy.severity)  # From common.variables.yml
+              format: $(trivy.format)
+              exitCode: $(trivy.exitCode)
+              ignoreUnfixed: true
+              hideProgress: false
+            continueOnError: false
+
+          # Step 4: Push to ACR
+          - task: Docker@2
+            displayName: Push image to Azure Container Registry
+            inputs:
+              command: push
+              containerRegistry: $(dockerRegistryServiceConnection)  # From VG (secret)
+              repository: $(imageRepository)
+              tags: |
+                $(containerRegistry)/$(imageRepository):$(imageTag.latest)
+                $(containerRegistry)/$(imageRepository):$(Build.BuildId)
+                $(containerRegistry)/$(imageRepository):$(imageTag.commitSha)
+            retryCountOnTaskFailure: $(retry.count)  # From common.variables.yml
+
+          # Step 5: Get image digest for GitOps
+          - task: Docker@2
+            displayName: Get image digest
+            inputs:
+              command: inspect
+              repository: $(containerRegistry)/$(imageRepository)
+              tags: $(Build.BuildId)
+            continueOnError: true
+            condition: succeeded()
+
+          # Step 6: Update config repo (GitOps promotion)
+          - task: Bash
+            displayName: Update config repo with new image
+            inputs:
+              targetType: inline
+              script: |
+                set -e
+
+                # Install kustomize
+                curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+                sudo mv kustomize /usr/local/bin/
+
+                # Clone config repo
+                git clone https://$(gitHubUsername):$(gitHubPAT)@github.com/$(GitHubOrg)/voting-platform-config.git
+                cd voting-platform-config
+
+                # Update image tag in Kustomize overlay (dev)
+                kustomize edit set image result=$(containerRegistry)/$(imageRepository):$(Build.BuildId) --kustomization overlays/dev
+
+                # Configure git
+                git config user.email "$(gitHubEmail)"
+                git config user.name "$(gitHubUsername)"
+
+                # Commit and push
+                if [ -z "$(git status --porcelain)" ]; then
+                  echo "No changes to commit"
+                else
+                  git add overlays/dev/kustomization.yaml
+                  git commit -m "chore: update result image to $(Build.BuildId)"
+                  git push origin main
+                  echo "Config repo updated successfully"
+                fi
+            env:
+              GitHubOrg: $(System.CollectionUri)  # Will need to be parameterized
+            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+            continueOnError: true
+
+          # Step 7: Publish build artifact (image info)
+          - task: PublishBuildArtifacts@1
+            displayName: Publish build artifact
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              artifactName: '$(artifactName)-$(Build.BuildId)'
+              publishLocation: Container
+            condition: succeeded()
+
+          # Step 8: Notify on success
+          - task: Bash
+            displayName: Notify Teams on success
+            inputs:
+              targetType: inline
+              script: |
+                echo "Build succeeded!"
+                echo "Image: $(containerRegistry)/$(imageRepository):$(Build.BuildId)"
+                # Add Teams webhook call here (Phase 2)
+            condition: succeeded()
+            continueOnError: true
+
+          # Step 9: Notify on failure
+          - task: Bash
+            displayName: Notify Teams on failure
+            inputs:
+              targetType: inline
+              script: |
+                echo "Build failed!"
+                echo "Check logs at: $(System.TeamFoundationCollectionUri)$(System.TeamProject)/_build/results/$(Build.BuildId)"
+                # Add Teams webhook call here (Phase 2)
+            condition: failed()
+            continueOnError: true

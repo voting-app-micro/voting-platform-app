@@ -1,21 +1,26 @@
-# Docker
-# Build and push an image to Azure Container Registry
-# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+# Results-PR-Build: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=2&_a=summary
+name: Results Microservice - Build and Push to ACR
 
+#Adding path based trigger as this pipeline only should trigger if changes made in results microservices.
 trigger:
-- main
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - result/*
 
 resources:
 - repo: self
 
 variables:
+- group: voting-platform-secrets
   # Container registry service connection established during pipeline creation
   dockerRegistryServiceConnection: 'da1b292c-c2ea-40db-b712-54ab3ea1bba1'
   imageRepository: 'votingappmicrovotingplatformappimage'
-  containerRegistry: 'votingappregistry.azurecr.io'
+  containerRegistry: $(ContainerRegistry)
   dockerfilePath: '$(Build.SourcesDirectory)/result/Dockerfile'
   tag: '$(Build.BuildId)'
-
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
 
