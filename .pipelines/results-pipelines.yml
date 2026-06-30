@@ -14,15 +14,19 @@ resources:
 - repo: self
 
 variables:
-- group: voting-platform-secrets
-  # Container registry service connection established during pipeline creation
-  dockerRegistryServiceConnection: $(ACRRegistryServiceConnection)
-  imageRepository: 'votingappmicrovotingplatformappimage'
-  containerRegistry: $(ContainerRegistry)
-  dockerfilePath: '$(Build.SourcesDirectory)/result/Dockerfile'
-  tag: '$(Build.BuildId)'
-  # Agent VM image name
-  vmImageName: 'ubuntu-latest'
+  - group: voting-platform-secrets
+  - name: dockerRegistryServiceConnection
+    value: $(ACRRegistryServiceConnection)
+  - name: imageRepository
+    value: 'votingappmicrovotingplatformappimage'
+  - name: containerRegistry
+    value: $(ContainerRegistry)
+  - name: dockerfilePath
+    value: '$(Build.SourcesDirectory)/result/Dockerfile'
+  - name: tag
+    value: '$(Build.BuildId)'
+  - name: vmImageName
+    value: 'ubuntu-latest'
 
 stages:
 - stage: Build
