@@ -1,14 +1,14 @@
-# Results-PR-Build: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=2&_a=summary
-name: Results Microservice - Build and Push to ACR
+# votes-PR-Build: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=2&_a=summary
+name: voter Microservice - Build and Push to ACR
 
-#Adding path based trigger as this pipeline only should trigger if changes made in results microservices.
+#Adding path based trigger as this pipeline only should trigger if changes made in votes microservices.
 trigger:
   branches:
     include:
       - main
   paths:
     include:
-      - result/*
+      - vote/*
 
 resources:
 - repo: self
@@ -18,9 +18,9 @@ variables:
   - name: dockerRegistryServiceConnection
     value: $(ACRRegistryServiceConnection)
   - name: imageRepository
-    value: 'votingapp-result'
+    value: 'votingapp-vote'
   - name: dockerfilePath
-    value: '$(Build.SourcesDirectory)/result/Dockerfile'
+    value: '$(Build.SourcesDirectory)/vote/Dockerfile'
   - name: tag
     value: '$(Build.BuildId)'
   - name: vmImageName
@@ -69,7 +69,7 @@ stages:
         script: |
           set -e
           mkdir -p $(Build.ArtifactStagingDirectory)
-          docker save -o $(Build.ArtifactStagingDirectory)/votingapp-result-$(tag).tar $(ContainerRegistry)/$(imageRepository):$(tag)
+          docker save -o $(Build.ArtifactStagingDirectory)/votingapp-vote-$(tag).tar $(ContainerRegistry)/$(imageRepository):$(tag)
           echo "Docker image exported to tar file"
           ls -lh $(Build.ArtifactStagingDirectory)/
 
@@ -77,7 +77,7 @@ stages:
       displayName: Publish Docker image artifact
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-        artifactName: 'docker-image-result-$(Build.BuildId)'
+        artifactName: 'docker-image-vote-$(Build.BuildId)'
         publishLocation: Container
 
 - stage: Push
@@ -95,7 +95,7 @@ stages:
       inputs:
         buildType: current
         downloadType: single
-        artifactName: 'docker-image-result-$(Build.BuildId)'
+        artifactName: 'docker-image-vote-$(Build.BuildId)'
         downloadPath: '$(System.ArtifactsDirectory)'
 
     - task: Bash@3
@@ -105,7 +105,7 @@ stages:
         script: |
           set -e
           echo "Loading Docker image from artifact..."
-          docker load -i $(System.ArtifactsDirectory)/docker-image-result-$(Build.BuildId)/votingapp-result-$(tag).tar
+          docker load -i $(System.ArtifactsDirectory)/docker-image-vote-$(Build.BuildId)/votingapp-vote-$(tag).tar
           echo "Docker image loaded successfully"
           docker images
 
