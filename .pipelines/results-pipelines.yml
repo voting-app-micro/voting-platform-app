@@ -22,7 +22,7 @@ variables:
   - name: dockerfilePath
     value: '$(Build.SourcesDirectory)/result/Dockerfile'
   - name: tag
-    value: '$(Build.BuildId)'
+    value: '1.0.$(Build.BuildId)'
   - name: vmImageName
     value: 'ubuntu-latest'
 
