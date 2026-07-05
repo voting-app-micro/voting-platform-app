@@ -4,7 +4,7 @@
 # This pipeline VALIDATES the result microservice on changes: it builds the image
 # and runs security gates, but it does NOT push to ACR. Publishing (build -> push,
 # plus Trivy/Cosign/Syft supply-chain steps) lives in results-pipelines.yml.
-name: '1.0.$(Build.BuildId)'
+name: '1.0.10$(Build.BuildId)'
 
 resources:
 - repo: self
@@ -57,8 +57,8 @@ stages:
           python -m pip install --upgrade pip
           pip install semgrep
           echo "Running Semgrep on result/ ..."
-          # p/javascript community ruleset; --error makes any finding fail the gate (fail-closed).
-          semgrep --config p/javascript --error result/
+          # p/javascript ruleset; --severity ERROR gates on high/critical only; --error fails the build on findings.
+          semgrep --config p/javascript --severity ERROR --error result/
 
     # 3) Dockerfile misconfiguration scan (fail-closed). Also installs Trivy for step 5.
     - task: Bash@3

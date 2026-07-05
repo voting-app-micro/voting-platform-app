@@ -48,4 +48,7 @@ def hello():
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=80, debug=True, threaded=True)
+    # Debug is opt-in via env (defaults off) — never hardcode debug=True (RCE via Werkzeug).
+    debug = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    # Binding all interfaces is required for the app to be reachable in a container.
+    app.run(host='0.0.0.0', port=80, debug=debug, threaded=True)  # nosec B104

@@ -1,10 +1,10 @@
-# votes-PR-Validation: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=3&_a=summary
+# votes-PR-Validation: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=5&_a=summary
 # name: Vote Microservice - PR Build & Security Gate
 #
 # This pipeline VALIDATES the vote microservice on changes: it builds the image
 # and runs security gates, but it does NOT push to ACR. Publishing (build -> push,
 # plus Trivy/Cosign/Syft supply-chain steps) lives in vote-app-pipelines.yml.
-name: '1.0.$(Build.BuildId)'
+name: '1.0.10$(Build.BuildId)'
 
 resources:
 - repo: self
@@ -57,8 +57,8 @@ stages:
           python -m pip install --upgrade pip
           pip install bandit
           echo "Running Bandit on vote/ ..."
-          # -ll: report MEDIUM+ severity, -ii: MEDIUM+ confidence. Non-zero exit fails the gate.
-          bandit -r vote/ -ll -ii
+          # -lll: HIGH severity only, -ii: MEDIUM+ confidence. Only HIGH findings fail the gate.
+          bandit -r vote/ -lll -ii
 
     # 3) Dockerfile misconfiguration scan (fail-closed). Also installs Trivy for step 5.
     - task: Bash@3

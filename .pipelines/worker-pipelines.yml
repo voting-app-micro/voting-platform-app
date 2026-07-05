@@ -1,4 +1,4 @@
-# workers-PR-Build: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=4&_a=summary
+# workers-Publish-Build: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=4&_a=summary
 # name: workers Microservice - Build and Push to ACR
 name: '1.0.$(Build.BuildId)'
 

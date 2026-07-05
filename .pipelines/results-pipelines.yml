@@ -1,4 +1,4 @@
-# Results-PR-Build: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=2&_a=summary
+# Results-Publish-Build: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=2&_a=summary
 # name: Results Microservice - Build and Push to ACR
 name: '1.0.$(Build.BuildId)'
 

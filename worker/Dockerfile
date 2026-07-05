@@ -25,4 +25,7 @@ RUN dotnet publish -c release -o /app -a $TARGETARCH --self-contained false --no
 FROM mcr.microsoft.com/dotnet/runtime:7.0
 WORKDIR /app
 COPY --from=build /app .
+# Run as a non-root user to avoid container-escape risk (Trivy DS-0002).
+RUN useradd --uid 1000 --create-home appuser
+USER appuser
 ENTRYPOINT ["dotnet", "Worker.dll"]

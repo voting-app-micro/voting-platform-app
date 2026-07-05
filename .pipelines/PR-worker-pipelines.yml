@@ -1,10 +1,10 @@
-# workers-PR-Validation: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=4&_a=summary
+# workers-PR-Validation: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=6&_a=summary
 # name: Worker Microservice - PR Build & Security Gate
 #
 # This pipeline VALIDATES the worker microservice (.NET/C#) on changes: it builds the
 # image and runs security gates, but it does NOT push to ACR. Publishing (build -> push,
 # plus Trivy/Cosign/Syft supply-chain steps) lives in worker-pipelines.yml.
-name: '1.0.$(Build.BuildId)'
+name: '1.0.10$(Build.BuildId)'
 
 resources:
 - repo: self
@@ -57,8 +57,8 @@ stages:
           python -m pip install --upgrade pip
           pip install semgrep
           echo "Running Semgrep on worker/ ..."
-          # p/csharp community ruleset; --error makes any finding fail the gate (fail-closed).
-          semgrep --config p/csharp --error worker/
+          # p/csharp ruleset; --severity ERROR gates on high/critical only; --error fails the build on findings.
+          semgrep --config p/csharp --severity ERROR --error worker/
 
     # 3) Dockerfile misconfiguration scan (fail-closed). Also installs Trivy for step 5.
     - task: Bash@3

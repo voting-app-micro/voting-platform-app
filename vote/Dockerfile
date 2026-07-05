@@ -28,5 +28,17 @@ COPY . .
 # Make port 80 available for links and/or publish
 EXPOSE 80
 
+# Grant the Python interpreter permission to bind privileged port 80 as a non-root user, so the
+# image is self-sufficient at runtime — no k8s NET_BIND_SERVICE capability and no port change
+# needed (ArgoCD manifests stay untouched). Then drop to a non-root user (Trivy DS-0002).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libcap2-bin \
+    && setcap 'cap_net_bind_service=+ep' "$(readlink -f "$(command -v python3)")" \
+    && apt-get purge -y libcap2-bin \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+RUN useradd --uid 1000 --create-home appuser
+USER appuser
+
 # Define our command to be run when launching the container
 CMD ["gunicorn", "app:app", "-b", "0.0.0.0:80", "--log-file", "-", "--access-logfile", "-", "--workers", "4", "--keep-alive", "0"]
