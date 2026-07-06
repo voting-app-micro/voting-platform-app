@@ -7,13 +7,10 @@ trigger:
   branches:
     include:
       - main
-  # paths:
-  #   include:
-  #     - result/*
-pr:  
-  branches:
+  paths:
     include:
-      - main
+      - result/*
+
 resources:
 - repo: self
 
