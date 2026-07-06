@@ -8,7 +8,11 @@ name: '1.0.10$(Build.BuildId)'
 
 # CI trigger disabled: this is a PR validation gate — it runs on pull requests or manually,
 # never on direct pushes (without this, ADO defaults to CI on every branch).
-trigger: none
+# trigger: none
+pr:
+  branches:
+    include:
+      - main
 
 resources:
 - repo: self
