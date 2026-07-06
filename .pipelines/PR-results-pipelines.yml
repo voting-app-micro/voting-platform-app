@@ -6,9 +6,22 @@
 # plus Trivy/Cosign/Syft supply-chain steps) lives in results-pipelines.yml.
 name: '1.0.10$(Build.BuildId)'
 
-# CI trigger disabled: this is a PR validation gate — run it via branch policy or manually,
+# CI trigger disabled: this is a PR validation gate — it runs on pull requests or manually,
 # never on direct pushes (without this, ADO defaults to CI on every branch).
 trigger: none
+
+# PR validation (GitHub): run on PRs targeting main that touch the result service, this
+# pipeline itself, or the shared Trivy suppression file. ADO posts the result as a status
+# check on the GitHub PR; make it blocking via a GitHub branch protection rule.
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - result/*
+      - .pipelines/PR-results-pipelines.yml
+      - .trivyignore
 
 resources:
 - repo: self
