@@ -1,0 +1,22 @@
+# .trivyignore — repo-wide Trivy suppression list
+#
+# Purpose: accept a specific finding (false positive, or a risk consciously accepted)
+# WITHOUT lowering the HIGH/CRITICAL gate in the PR pipelines. The PR pipelines pass
+# this file explicitly via --ignorefile; Trivy also auto-loads it when run from the
+# repo root (e.g. local scans: `trivy image <image>`).
+#
+# Rules:
+#   - One vulnerability/check ID per line (CVE-XXXX-NNNNN, AVD-DS-NNNN, etc.).
+#   - EVERY entry must carry a comment: why it is safe to ignore, who accepted it,
+#     and an expiry/review date. Remove entries as soon as a fix ships.
+#   - Prefer fixing (bump base image / dependency) over ignoring. This file is the
+#     exception path, not the default.
+#
+# Examples (keep commented out):
+#   # False positive: package not reachable at runtime, accepted by @neesh 2026-07-06, review 2026-10-01
+#   # CVE-2026-12345
+#
+#   # Dockerfile check: root user required for init step, mitigated by USER later in stage
+#   # AVD-DS-0002
+
+# (no active suppressions)

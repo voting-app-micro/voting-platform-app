@@ -6,6 +6,10 @@
 # plus Trivy/Cosign/Syft supply-chain steps) lives in results-pipelines.yml.
 name: '1.0.10$(Build.BuildId)'
 
+# CI trigger disabled: this is a PR validation gate — run it via branch policy or manually,
+# never on direct pushes (without this, ADO defaults to CI on every branch).
+trigger: none
+
 resources:
 - repo: self
 
@@ -69,7 +73,7 @@ stages:
           set -e
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
           echo "Scanning Dockerfile for misconfigurations..."
-          trivy config --severity HIGH,CRITICAL --exit-code 1 result/
+          trivy config --severity HIGH,CRITICAL --exit-code 1 --ignorefile "$(Build.SourcesDirectory)/.trivyignore" result/
 
     # 4) Build the image (no push — this is a validation pipeline).
     - task: Docker@2
@@ -89,4 +93,4 @@ stages:
         script: |
           set -e
           echo "Scanning built image for HIGH/CRITICAL vulnerabilities..."
-          trivy image --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed $(imageRepository):$(tag)
+          trivy image --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed --ignorefile "$(Build.SourcesDirectory)/.trivyignore" $(imageRepository):$(tag)
