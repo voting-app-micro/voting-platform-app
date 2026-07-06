@@ -12,9 +12,13 @@ RUN npm install -g nodemon
 
 COPY package*.json ./
 
+# After install, remove the npm CLI from the image: it's build-time only, and its bundled
+# deps (picomatch, sigstore) carry HIGH CVEs that track the base image's npm, not our app.
+# Runtime is plain `node server.js` (and nodemon for dev), so npm isn't needed after this step.
 RUN npm ci && \
  npm cache clean --force && \
- mv /usr/local/app/node_modules /node_modules
+ mv /usr/local/app/node_modules /node_modules && \
+ rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 COPY . .
 

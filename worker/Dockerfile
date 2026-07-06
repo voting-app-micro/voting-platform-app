@@ -26,6 +26,8 @@ FROM mcr.microsoft.com/dotnet/runtime:10.0
 WORKDIR /app
 COPY --from=build /app .
 # Run as a non-root user to avoid container-escape risk (Trivy DS-0002).
-RUN useradd --uid 1000 --create-home appuser
-USER appuser
+# dotnet images ship a built-in non-root 'app' user since 8.0 — use it instead of useradd:
+# the 10.0 images are Ubuntu-based, where UID 1000 is already taken by the 'ubuntu' user
+# (useradd --uid 1000 fails with exit code 4).
+USER app
 ENTRYPOINT ["dotnet", "Worker.dll"]
