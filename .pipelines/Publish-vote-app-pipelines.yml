@@ -1,0 +1,200 @@
+# votes-Publish-Build: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=3&_a=summary
+# name: voter Microservice - Build and Push to ACR
+name: '1.0.20$(Build.BuildId)'
+
+#Adding path based trigger as this pipeline only should trigger if changes made in votes microservices.
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - vote/*
+
+resources:
+- repo: self
+
+variables:
+  - group: voting-platform-secrets
+  - name: dockerRegistryServiceConnection
+    value: $(ACRRegistryServiceConnection)
+  - name: imageRepository
+    value: 'votingapp-vote'
+  - name: dockerfilePath
+    value: '$(Build.SourcesDirectory)/vote/Dockerfile'
+  - name: tag
+    value: '1.0.$(Build.BuildId)'
+  - name: vmImageName
+    value: 'ubuntu-latest'
+  # Pinned security-tool versions for reproducible scans/signing (bump deliberately).
+  - name: trivyVersion
+    value: '0.58.0'
+  - name: cosignVersion
+    value: '2.4.1'
+  - name: syftVersion
+    value: '1.18.1'
+
+stages:
+- stage: Build
+  displayName: Build Docker Image
+  jobs:
+  - job: BuildJob
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Build Docker image
+      inputs:
+        command: build
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        tags: |
+          $(tag)
+
+    # SECURITY GATE (fail-closed): re-scan the exact image before it is published.
+    # PR scans go stale (base-image drift, newly disclosed CVEs), so the release path
+    # must re-gate on its own. If this fails, the Build stage fails and Push never runs.
+    - task: Bash@3
+      displayName: 'Trivy - Image vulnerability scan (pre-push gate)'
+      inputs:
+        targetType: inline
+        script: |
+          set -e
+          echo "Installing Trivy v$(trivyVersion) (pinned release)..."
+          wget -qO trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v$(trivyVersion)/trivy_$(trivyVersion)_Linux-64bit.tar.gz"
+          tar -xzf trivy.tar.gz trivy
+          sudo mv trivy /usr/local/bin/
+          echo "Scanning image for HIGH/CRITICAL vulnerabilities..."
+          # NOTE: --ignore-unfixed kept here for parity with the PR gate; flagged for
+          # review (dropping it on the release gate is a pending decision).
+          trivy image --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed \
+            --ignorefile "$(Build.SourcesDirectory)/.trivyignore" \
+            $(imageRepository):$(tag)
+
+    - task: Bash@3
+      displayName: Tag Docker image with registry path
+      env:
+        IMAGE_REPO: $(imageRepository)
+        IMAGE_TAG: $(tag)
+        REGISTRY: $(ContainerRegistry)
+      inputs:
+        targetType: inline
+        script: |
+          set -e
+          echo "Tagging image with registry path..."
+          echo "Image Repo: $IMAGE_REPO"
+          echo "Image Tag: $IMAGE_TAG"
+          echo "Registry: $REGISTRY"
+          docker tag $IMAGE_REPO:$IMAGE_TAG $REGISTRY/$IMAGE_REPO:$IMAGE_TAG
+          echo "Image tagged successfully"
+          docker images | grep $IMAGE_REPO
+
+    - task: Bash@3
+      displayName: Export Docker image to tar
+      inputs:
+        targetType: inline
+        script: |
+          set -e
+          mkdir -p $(Build.ArtifactStagingDirectory)
+          docker save -o $(Build.ArtifactStagingDirectory)/votingapp-vote-$(tag).tar $(ContainerRegistry)/$(imageRepository):$(tag)
+          echo "Docker image exported to tar file"
+          ls -lh $(Build.ArtifactStagingDirectory)/
+
+    - task: PublishBuildArtifacts@1
+      displayName: Publish Docker image artifact
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'docker-image-vote-$(Build.BuildId)'
+        publishLocation: Container
+
+- stage: Push
+  displayName: Push to Azure Container Registry
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: PushJob
+    displayName: Push
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: DownloadBuildArtifacts@0
+      displayName: Download Docker image artifact
+      inputs:
+        buildType: current
+        downloadType: single
+        artifactName: 'docker-image-vote-$(Build.BuildId)'
+        downloadPath: '$(System.ArtifactsDirectory)'
+
+    - task: Bash@3
+      displayName: Load Docker image from tar
+      inputs:
+        targetType: inline
+        script: |
+          set -e
+          echo "Loading Docker image from artifact..."
+          docker load -i $(System.ArtifactsDirectory)/docker-image-vote-$(Build.BuildId)/votingapp-vote-$(tag).tar
+          echo "Docker image loaded successfully"
+          docker images
+
+    - task: Docker@2
+      displayName: Push image to ACR
+      inputs:
+        command: push
+        containerRegistry: $(dockerRegistryServiceConnection)
+        repository: $(imageRepository)
+        tags: |
+          $(tag)
+
+    # SUPPLY-CHAIN: authenticate the agent's docker config so cosign/syft can talk to ACR.
+    - task: Docker@2
+      displayName: 'Registry login (for cosign/syft)'
+      inputs:
+        command: login
+        containerRegistry: $(dockerRegistryServiceConnection)
+
+    # Sign the published image and attach an SBOM attestation — both bound to the
+    # immutable digest (never a tag). Kyverno can then verify the signature at admission.
+    # Requires cosignPrivateKey + cosignPassword in the voting-platform-secrets group.
+    - task: Bash@3
+      displayName: 'Cosign sign + Syft SBOM attestation'
+      env:
+        COSIGN_PRIVATE_KEY: $(cosignPrivateKey)
+        COSIGN_PASSWORD: $(cosignPassword)
+      inputs:
+        targetType: inline
+        script: |
+          set -e
+          echo "Installing cosign v$(cosignVersion) and syft v$(syftVersion) (pinned releases)..."
+          wget -qO cosign "https://github.com/sigstore/cosign/releases/download/v$(cosignVersion)/cosign-linux-amd64"
+          chmod +x cosign && sudo mv cosign /usr/local/bin/
+          wget -qO syft.tar.gz "https://github.com/anchore/syft/releases/download/v$(syftVersion)/syft_$(syftVersion)_linux_amd64.tar.gz"
+          tar -xzf syft.tar.gz syft && sudo mv syft /usr/local/bin/
+
+          # Resolve the immutable digest of what we just pushed. Signing/attesting by
+          # digest is mandatory — tags are mutable and can be re-pointed after signing.
+          IMAGE="$(ContainerRegistry)/$(imageRepository)"
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$(tag)")
+          echo "Resolved digest: $DIGEST"
+
+          echo "Signing image..."
+          cosign sign --key env://COSIGN_PRIVATE_KEY --yes "$DIGEST"
+
+          echo "Generating SBOM (SPDX JSON)..."
+          syft "$DIGEST" -o spdx-json > sbom.spdx.json
+
+          echo "Attaching SBOM attestation..."
+          cosign attest --key env://COSIGN_PRIVATE_KEY --type spdxjson \
+            --predicate sbom.spdx.json --yes "$DIGEST"
+
+          # Keep a copy of the SBOM for audit (this pipeline already publishes artifacts).
+          cp sbom.spdx.json "$(Build.ArtifactStagingDirectory)/sbom-$(imageRepository)-$(tag).spdx.json"
+          echo "Done. Image signed and SBOM attested to $DIGEST"
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish SBOM artifact'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'sbom-vote-$(Build.BuildId)'
+        publishLocation: Container
+      condition: succeeded()
