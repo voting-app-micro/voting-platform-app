@@ -10,8 +10,10 @@ trigger:
   # paths:
   #   include:
   #     - result/*
-pr:
-  - main
+pr:  
+  branches:
+    include:
+      - main
 resources:
 - repo: self
 

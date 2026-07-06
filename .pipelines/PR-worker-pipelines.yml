@@ -14,6 +14,9 @@ trigger: none
 # pipeline itself, or the shared Trivy suppression file. ADO posts the result as a status
 # check on the GitHub PR; make it blocking via a GitHub branch protection rule.
 pr:
+  branches:
+    include:
+      - main
   paths:
     include:
       - worker/*
