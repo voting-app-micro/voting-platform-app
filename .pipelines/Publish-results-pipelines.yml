@@ -7,9 +7,9 @@ trigger:
   branches:
     include:
       - main
-  paths:
-    include:
-      - result/*
+  # paths:
+  #   include:
+  #     - result/*
 
 resources:
 - repo: self
