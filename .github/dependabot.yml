@@ -1,0 +1,53 @@
+# Dependabot — runs on GitHub (github.com), NOT on Azure DevOps.
+# On schedule it scans the manifests below and opens PRs on GitHub;
+# those PRs then trigger the ADO PR-validation pipelines as status checks.
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates
+version: 2
+updates:
+  # ---- Base images (Trivy scans images; Dependabot keeps the FROM tags fresh) ----
+  - package-ecosystem: "docker"
+    directory: "/vote"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "docker"
+    directory: "/result"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "docker"
+    directory: "/worker"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # ---- vote: Python ----
+  - package-ecosystem: "pip"
+    directory: "/vote"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      # One combined PR for minor/patch bumps to cut review noise.
+      vote-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # ---- result: Node.js ----
+  - package-ecosystem: "npm"
+    directory: "/result"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      result-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # ---- worker: .NET / NuGet ----
+  - package-ecosystem: "nuget"
+    directory: "/worker"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      worker-minor-patch:
+        update-types: ["minor", "patch"]

@@ -5,3 +5,8 @@ obj/
 .vs/
 node_modules/
 .env
+
+# Cosign signing keys — NEVER commit the private key
+*.key
+cosign.key
+cosign.pub
