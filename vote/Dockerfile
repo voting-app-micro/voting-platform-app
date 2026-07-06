@@ -1,5 +1,5 @@
 # base defines a base stage that uses the official python runtime base image
-FROM python:3.11-slim AS base
+FROM python:3.13-slim AS base
 
 # Add curl for healthcheck
 RUN apt-get update && \
@@ -9,7 +9,8 @@ RUN apt-get update && \
 # Set the application directory
 WORKDIR /usr/local/app
 
-# Install our requirements.txt
+# Install our requirements.txt. Do NOT install setuptools/wheel here — python:3.12+ images no
+# longer ship them, and adding them back reintroduces vendored HIGH CVEs (jaraco.context, wheel).
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
