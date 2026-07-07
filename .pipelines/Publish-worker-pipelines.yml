@@ -28,7 +28,7 @@ variables:
     value: 'ubuntu-latest'
   # Pinned security-tool versions for reproducible scans/signing (bump deliberately).
   - name: trivyVersion
-    value: '0.58.0'
+    value: '0.72.0'
   - name: cosignVersion
     value: '2.4.1'
   - name: syftVersion

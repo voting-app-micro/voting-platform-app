@@ -8,7 +8,10 @@ name: '1.0.10$(Build.BuildId)'
 
 # CI trigger disabled: this is a PR validation gate — it runs on pull requests or manually,
 # never on direct pushes (without this, ADO defaults to CI on every branch).
-# trigger: none
+trigger:
+  branches:
+    exclude:
+      - main
 
 # PR validation (GitHub): run on PRs targeting main that touch the result service, this
 # pipeline itself, or the shared Trivy suppression file. ADO posts the result as a status
