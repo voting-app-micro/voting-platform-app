@@ -82,10 +82,18 @@ stages:
         tags: |
           $(tag)
 
-    # SUPPLY-CHAIN: sign the pushed image and attest its SBOM, both bound to the
-    # immutable digest. The push above already authenticated the agent's docker config,
-    # so cosign/syft reuse it. SBOM lives as a registry attestation (no build artifact,
-    # keeping this pipeline's bare build->push shape). Kyverno verifies the signature.
+    # SUPPLY-CHAIN: authenticate the agent's docker config so cosign/syft can talk to
+    # ACR — the push task above logs itself out when it finishes, so an explicit login
+    # is required here (same as the results/vote pipelines).
+    - task: Docker@2
+      displayName: 'Registry login (for cosign/syft)'
+      inputs:
+        command: login
+        containerRegistry: $(dockerRegistryServiceConnection)
+
+    # Sign the pushed image and attest its SBOM, both bound to the immutable digest.
+    # SBOM lives as a registry attestation (no build artifact, keeping this pipeline's
+    # bare build->push shape). Kyverno verifies the signature.
     # Requires cosignPrivateKey + cosignPassword in the voting-platform-secrets group.
     - task: Bash@3
       displayName: 'Cosign sign + Syft SBOM attestation'
