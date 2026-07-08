@@ -1,6 +1,6 @@
 # workers-Publish-Build: https://dev.azure.com/neesh90900932/PythonWorks/_build?definitionId=4&_a=summary
 # name: workers Microservice - Build and Push to ACR
-name: '1.0.$(Build.BuildId)'
+name: '1.0.20$(Build.BuildId)'
 
 #Adding path based trigger as this pipeline only should trigger if changes made in workers microservices.
 trigger:
