@@ -22,8 +22,9 @@ variables:
     value: 'votingapp-worker'
   - name: dockerfilePath
     value: '$(Build.SourcesDirectory)/worker/Dockerfile'
+  # tag == buildNumber so the release pipeline can promote by BUILD_BUILDNUMBER
   - name: tag
-    value: '1.0.$(Build.BuildId)'
+    value: '$(Build.BuildNumber)'
   - name: vmImageName
     value: 'ubuntu-latest'
   # Pinned security-tool versions for reproducible scans/signing (bump deliberately).
