@@ -90,12 +90,16 @@ stages:
     - task: Bash@3
       displayName: 'Cosign sign + Syft SBOM attestation'
       env:
-        COSIGN_PRIVATE_KEY: $(cosignPrivateKey)
+        # cosignPrivateKey holds the key BASE64-ENCODED: ADO variables mangle
+        # multi-line values, which corrupts raw PEM ("invalid pem block").
+        COSIGN_PRIVATE_KEY_B64: $(cosignPrivateKey)
         COSIGN_PASSWORD: $(cosignPassword)
       inputs:
         targetType: inline
         script: |
           set -e
+          # Decode the base64-stored signing key back into the PEM cosign expects.
+          export COSIGN_PRIVATE_KEY="$(printf '%s' "$COSIGN_PRIVATE_KEY_B64" | base64 -d)"
           echo "Installing cosign v$(cosignVersion) and syft v$(syftVersion) (pinned releases)..."
           wget -qO cosign "https://github.com/sigstore/cosign/releases/download/v$(cosignVersion)/cosign-linux-amd64"
           chmod +x cosign && sudo mv cosign /usr/local/bin/
