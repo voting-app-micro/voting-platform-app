@@ -19,6 +19,7 @@ Optional overrides (defaults in CONFIG below): CONFIG_ORG, CONFIG_REPO,
   DRY_RUN=1    do everything except push the branch / open the PR (local testing).
 """
 
+import argparse
 import base64
 import json
 import os
@@ -50,14 +51,23 @@ def run(args: list[str], cwd: str | None = None, check: bool = True) -> subproce
 
 
 def resolve_inputs() -> dict:
+    # CLI args take precedence over env vars. --token exists because the classic
+    # PythonScript task has no env-mapping UI and ADO never auto-exposes secrets:
+    # pass `--token $(gitOpsPAT)` in the task's Arguments (masked in logs).
+    cli = argparse.ArgumentParser()
+    for flag in ("--token", "--tag", "--image", "--registry"):
+        cli.add_argument(flag)
+    args, _ = cli.parse_known_args()
+
     env = os.environ
-    token = env.get("GHE_TOKEN") or die("GHE_TOKEN is required (map the secret in the task env)")
-    tag = env.get("IMAGE_TAG") or env.get("BUILD_BUILDNUMBER") or die(
+    token = args.token or env.get("GHE_TOKEN") or die(
+        "GitHub token is required: pass --token $(gitOpsPAT) or set GHE_TOKEN")
+    tag = args.tag or env.get("IMAGE_TAG") or env.get("BUILD_BUILDNUMBER") or die(
         "IMAGE_TAG is required (or trigger from a build so BUILD_BUILDNUMBER exists)")
-    registry = env.get("REGISTRY") or env.get("CONTAINERREGISTRY") or die(
+    registry = args.registry or env.get("REGISTRY") or env.get("CONTAINERREGISTRY") or die(
         "REGISTRY is required (link the variable group so ContainerRegistry flows in)")
 
-    image = env.get("IMAGE_NAME")
+    image = args.image or env.get("IMAGE_NAME")
     if not image:
         # Derive from the triggering build definition so one release definition can
         # serve all three services.
