@@ -20,3 +20,4 @@
 #   # AVD-DS-0002
 
 # (no active suppressions)
+# smoke-test: PR validation trigger check (safe to remove)
