@@ -60,10 +60,26 @@ def resolve_inputs() -> dict:
     args, _ = cli.parse_known_args()
 
     env = os.environ
+
+    # In a classic release, BUILD_BUILDNUMBER mirrors the PRIMARY artifact — if a
+    # GitHub repo artifact is primary, that's a commit SHA, not a build number. So
+    # resolve the Build-type artifact's variables explicitly, preferring the one
+    # that triggered the release.
+    arts: dict[str, dict[str, str]] = {}
+    for k, v in env.items():
+        m = re.match(r"RELEASE_ARTIFACTS_(.+)_(BUILDNUMBER|DEFINITIONNAME|TYPE)$", k, re.I)
+        if m:
+            arts.setdefault(m.group(1).upper(), {})[m.group(2).upper()] = v
+    builds = {a: d for a, d in arts.items() if d.get("TYPE", "").lower() == "build"}
+    trigger_alias = (env.get("RELEASE_TRIGGERINGARTIFACT_ALIAS") or "").upper()
+    build_art = builds.get(trigger_alias) or (
+        next(iter(builds.values())) if len(builds) == 1 else {})
+
     token = args.token or env.get("GHE_TOKEN") or die(
         "GitHub token is required: pass --token $(gitOpsPAT) or set GHE_TOKEN")
-    tag = args.tag or env.get("IMAGE_TAG") or env.get("BUILD_BUILDNUMBER") or die(
-        "IMAGE_TAG is required (or trigger from a build so BUILD_BUILDNUMBER exists)")
+    tag = (args.tag or env.get("IMAGE_TAG") or build_art.get("BUILDNUMBER")
+           or env.get("BUILD_BUILDNUMBER") or die(
+           "IMAGE_TAG is required (or trigger from a build so BUILD_BUILDNUMBER exists)"))
     registry = args.registry or env.get("REGISTRY") or env.get("CONTAINERREGISTRY") or die(
         "REGISTRY is required (link the variable group so ContainerRegistry flows in)")
 
@@ -71,7 +87,7 @@ def resolve_inputs() -> dict:
     if not image:
         # Derive from the triggering build definition so one release definition can
         # serve all three services.
-        definition = env.get("BUILD_DEFINITIONNAME", "")
+        definition = build_art.get("DEFINITIONNAME") or env.get("BUILD_DEFINITIONNAME", "")
         for pattern, name in ((r"vot", "votingapp-vote"),
                               (r"result", "votingapp-result"),
                               (r"worker", "votingapp-worker")):
